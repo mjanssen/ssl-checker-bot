@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use teloxide::{prelude::*, utils::command::BotCommands};
 
 use super::{
-    domain::{verify_domain, DomainStatus},
+    domain::Checker,
     redis::{RedisActions, RedisClient},
 };
 
@@ -25,8 +23,8 @@ pub enum BotCommand {
     Remove(String),
     #[command(description = "list all domains in your checklist")]
     List,
-    #[command(description = "initiate checking domains manually")]
-    Trigger,
+    #[command(description = "get report of stored domains")]
+    Report,
     #[command(description = "manually check one single domain")]
     Check(String),
 }
@@ -99,33 +97,19 @@ pub async fn message(
                 }
             }
         }
-        BotCommand::Trigger => {
+        BotCommand::Report => {
             match RedisActions::get_domains(&redis_client, &msg.chat.id.to_string()) {
                 Ok(domains) => match domains {
                     Some(domain_string) => {
                         let domains = domain_string.split(",").collect::<Vec<&str>>();
-                        let mut domains_and_status: HashMap<&str, DomainStatus> = HashMap::new();
+                        let domain_checker = Checker::new(domains);
+                        let domain_statusses = domain_checker.get_domain_statusses().await;
 
-                        for domain in domains {
-                            let status = verify_domain(domain);
-                            domains_and_status.insert(domain, status);
-                        }
-
-                        let message = domains_and_status
-                            .iter()
-                            .map(|(domain, status)| match status {
-                                DomainStatus::Expired => format!("{domain}: Certificate expired"),
-                                DomainStatus::ValidationFailed(error) => {
-                                    format!("{domain}: Check failed - {error}")
-                                }
-                                DomainStatus::ValidFor(days) => {
-                                    format!("{domain}: Certificate valid for {days} days")
-                                }
-                            })
-                            .collect::<Vec<String>>()
-                            .join("\n");
-
-                        bot.send_message(msg.chat.id, message).await?
+                        bot.send_message(
+                            msg.chat.id,
+                            domain_checker.parse_statusses_to_string(&domain_statusses),
+                        )
+                        .await?
                     }
                     None => {
                         bot.send_message(msg.chat.id, "No domains found for your user")
@@ -139,8 +123,7 @@ pub async fn message(
             }
         }
         BotCommand::Check(domain) => {
-            let status = verify_domain(&domain);
-            bot.send_message(msg.chat.id, format!("Checking domain {domain}"))
+            bot.send_message(msg.chat.id, format!("{domain} could not be checked"))
                 .await?
         }
     };
