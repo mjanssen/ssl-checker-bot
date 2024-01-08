@@ -1061,6 +1061,7 @@ name = "ssl-checker-bot"
 version = "0.1.0"
 dependencies = [
  "redis",
+ "reqwest",
  "ssl-expiration2",
  "teloxide",
  "tokio",
