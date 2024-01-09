@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "telegram-bot"
-path = "./src/telegram_bot.rs"
+name = "bot"
+path = "src/bot.rs"
 
 [[bin]]
-name = "amqp-heartbeats-consumer"
-path = "./src/amqp_heartbeats_consumer.rs"
+name = "cron"
+path = "./src/cron.rs"
 
 [dependencies]
 redis = "0.24.0"
@@ -17,3 +17,5 @@ reqwest = "0.11.23"
 ssl-expiration2 = "0.4.0"
 teloxide = { version = "0.12.2", features = ["macros"] }
 tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
+env_logger = "0.10.0"
+log = "0.4.17"

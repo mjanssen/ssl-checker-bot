@@ -3,6 +3,7 @@ use teloxide::{prelude::*, utils::command::BotCommands};
 use super::{
     domain::Checker,
     redis::{RedisActions, RedisClient},
+    version::{get_app_version, get_helm_chart_version},
 };
 
 pub fn get_bot() -> teloxide::Bot {
@@ -27,6 +28,8 @@ pub enum BotCommand {
     Report,
     #[command(description = "manually check one single domain")]
     Check(String),
+    #[command(description = "get the current running version")]
+    Version,
 }
 
 pub async fn message(
@@ -124,6 +127,16 @@ pub async fn message(
         }
         BotCommand::Check(domain) => {
             bot.send_message(msg.chat.id, format!("{domain} could not be checked"))
+                .await?
+        }
+        BotCommand::Version => {
+            let app_version = get_app_version();
+            let helm_chart_version = get_helm_chart_version();
+
+            bot.send_message(
+                msg.chat.id,
+                format!("App: {}\nHelm Chart: {}", app_version, helm_chart_version).as_str(),
+            )
                 .await?
         }
     };
