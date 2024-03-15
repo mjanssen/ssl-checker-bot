@@ -1,13 +1,20 @@
+use log::{info};
 use teloxide::prelude::*;
 
 mod lib;
 use lib::{
     bot::{get_bot, message, BotCommand},
     redis::RedisClient,
+    version::print_version,
 };
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+    print_version();
+
+    info!("Starting bot service");
+
     let redis_client = RedisClient::new();
 
     let bot = get_bot();
