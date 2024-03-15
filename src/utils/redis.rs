@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use redis::{self, Client, Connection};
 use redis::{Commands, RedisError};
 
+use super::env_variable::get_environment_variable;
+
 pub enum Database {
     User = 0,
     Domains = 1,
@@ -14,7 +16,9 @@ pub struct RedisClient {
 }
 impl RedisClient {
     pub fn new() -> Self {
-        match redis::Client::open("redis://127.0.0.1/") {
+        let connection_url = get_environment_variable("REDIS_URL");
+
+        match redis::Client::open(connection_url) {
             Ok(client) => Self { client },
             Err(error) => panic!("Could not create redis client: {}", error),
         }
