@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use redis::{self, Client, Connection};
 use redis::{Commands, RedisError};
 
@@ -29,6 +31,20 @@ impl RedisClient {
         // Make the current connection connect to the messages database
         let _: Result<(), redis::RedisError> = redis::cmd("SELECT").arg(db as u8).query(con);
     }
+}
+
+pub fn parse_domain_list(domains: &String) -> Vec<String> {
+    domains
+        .split(",")
+        .into_iter()
+        .filter_map(|domain| {
+            if domain.ne("") && domain.len() > 0 {
+                return Some(domain.to_string());
+            }
+
+            None
+        })
+        .collect::<Vec<String>>()
 }
 
 type RedisResult = redis::RedisResult<()>;
@@ -87,10 +103,36 @@ impl RedisActions {
         Ok(Some(()))
     }
 
-    pub fn get_domains(client: &RedisClient, user_id: &str) -> Result<Option<String>, RedisError> {
+    pub fn get_domains(
+        client: &RedisClient,
+        user_id: &str,
+    ) -> Result<Option<Vec<String>>, RedisError> {
         let mut con = client.get_connection();
         client.set_database(&mut con, Database::Domains);
 
-        Ok(con.get(user_id)?)
+        if let Some(domains) = con.get::<&str, Option<String>>(user_id)? {
+            return Ok(Some(parse_domain_list(&domains)));
+        }
+
+        Ok(None)
+    }
+
+    pub async fn get_clients_and_domains(
+        client: &RedisClient,
+    ) -> Result<HashMap<String, Vec<String>>, RedisError> {
+        let mut con = client.get_connection();
+        client.set_database(&mut con, Database::Domains);
+
+        let mut users_and_domains: HashMap<String, Vec<String>> = HashMap::new();
+
+        if let Some(clients) = con.keys::<&str, Option<Vec<String>>>("*")? {
+            for client in clients {
+                if let Some(domains) = con.get::<String, Option<String>>(client.clone())? {
+                    users_and_domains.insert(client, parse_domain_list(&domains));
+                }
+            }
+        }
+
+        Ok(users_and_domains)
     }
 }

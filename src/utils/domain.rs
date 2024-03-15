@@ -11,15 +11,16 @@ pub enum CertificateStatus {
 
 type DomainStatus = Result<u16, reqwest::Error>;
 
-pub struct Checker<'a> {
-    domains: Vec<&'a str>,
+pub struct Checker {
+    domains: Vec<String>,
+    cron: bool,
 }
 
 type DomainStatusList<'a> = HashMap<&'a str, (CertificateStatus, DomainStatus)>;
 
-impl<'a> Checker<'a> {
-    pub fn new<'b>(domains: Vec<&'a str>) -> Self {
-        Self { domains }
+impl Checker {
+    pub fn new<'b>(domains: Vec<String>, cron: bool) -> Self {
+        Self { domains, cron }
     }
 
     pub async fn check_domain_status(&self, domain: &str) -> DomainStatus {
@@ -129,6 +130,11 @@ impl<'a> Checker<'a> {
             .collect::<Vec<String>>()
             .join("\n");
 
-        format!("Found {problem_count} errors\n\n{message}")
+        let cron_msg = match self.cron {
+            true => "Your daily report \n\n",
+            false => "",
+        };
+
+        format!("{cron_msg}Found {problem_count} errors\n\n{message}")
     }
 }
