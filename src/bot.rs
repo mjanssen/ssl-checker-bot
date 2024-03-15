@@ -1,8 +1,8 @@
-use log::{info};
+use log::info;
 use teloxide::prelude::*;
 
-mod lib;
-use lib::{
+mod utils;
+use utils::{
     bot::{get_bot, message, BotCommand},
     redis::RedisClient,
     version::print_version,
