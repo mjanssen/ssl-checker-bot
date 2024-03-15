@@ -2,12 +2,6 @@ use log::info;
 
 use teloxide::prelude::*;
 
-// use super::{
-//     domain::Checker,
-//     redis::{RedisActions, RedisClient},
-//     version::{get_app_version, get_helm_chart_version},
-// };
-
 mod utils;
 use utils::{
     bot::get_bot,
