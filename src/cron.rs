@@ -16,7 +16,7 @@ async fn main() {
     env_logger::init();
     print_version();
 
-    info!("Starting bot service");
+    info!("Starting cron service");
 
     let redis_client = RedisClient::new();
 
