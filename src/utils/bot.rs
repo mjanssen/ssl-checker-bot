@@ -80,9 +80,9 @@ pub async fn message(
         }
         BotCommand::List => {
             match RedisActions::get_domains(&redis_client, &msg.chat.id.to_string()) {
-                Ok(domains) => match domains {
-                    Some(domain_string) => {
-                        let message = domain_string.split(",").collect::<Vec<&str>>().join("\n");
+                Ok(domain_value) => match domain_value {
+                    Some(domains) => {
+                        let message = domains.join("\n");
                         bot.send_message(
                             msg.chat.id,
                             format!("Current activated domains:\n\n{}", message),
@@ -102,10 +102,9 @@ pub async fn message(
         }
         BotCommand::Report => {
             match RedisActions::get_domains(&redis_client, &msg.chat.id.to_string()) {
-                Ok(domains) => match domains {
-                    Some(domain_string) => {
-                        let domains = domain_string.split(",").collect::<Vec<&str>>();
-                        let domain_checker = Checker::new(domains);
+                Ok(domain_value) => match domain_value {
+                    Some(domains) => {
+                        let domain_checker = Checker::new(domains, false);
                         let domain_statusses = domain_checker.get_domain_statusses().await;
 
                         bot.send_message(
@@ -137,7 +136,7 @@ pub async fn message(
                 msg.chat.id,
                 format!("App: {}\nHelm Chart: {}", app_version, helm_chart_version).as_str(),
             )
-                .await?
+            .await?
         }
     };
 
