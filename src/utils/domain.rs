@@ -96,7 +96,10 @@ impl Checker {
                                 warning_count += 1;
                                 format!("- ⚠️ Certificate about to expire ({days} days left)")
                             }
-                            x if x < &14 => format!("- ⚠️ Certificate valid for {days} days"),
+                            x if x < &14 => {
+                                warning_count += 1;
+                                format!("- ⚠️ Certificate valid for {days} days")
+                            },
                             _ => format!("- ✅ Certificate valid for {days} days"),
                         };
 
