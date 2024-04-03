@@ -18,6 +18,11 @@ pub struct Checker {
 
 type DomainStatusList<'a> = HashMap<&'a str, (CertificateStatus, DomainStatus)>;
 
+struct ErrorState {
+    error_count: u16,
+    warning_count: u16,
+}
+
 impl Checker {
     pub fn new<'b>(domains: Vec<String>, cron: bool) -> Self {
         Self { domains, cron }
@@ -74,7 +79,11 @@ impl Checker {
     }
 
     pub fn parse_statusses_to_string(&self, statusses: &DomainStatusList) -> String {
-        let mut problem_count = 0u16;
+        let mut error_state = ErrorState {
+            error_count: 0,
+            warning_count: 0,
+        };
+
         let message = statusses
             .iter()
             .map(|(domain, (domain_status, request_status))| {
@@ -82,19 +91,23 @@ impl Checker {
 
                 let cert_status: String = match domain_status {
                     CertificateStatus::Expired => {
-                        problem_count += 1;
+                        error_state.error_count += 1;
                         "- ⌛️ Certificate expired".to_string()
                     }
                     CertificateStatus::ValidationFailed(error) => {
-                        problem_count += 1;
+                        error_state.error_count += 1;
                         format!("- 🛑 Certificate error: {error}")
                     }
                     CertificateStatus::ValidFor(days) => {
                         let message: String = match days {
                             x if x < &2 => {
+                                error_state.warning_count += 1;
                                 format!("- ⚠️ Certificate about to expire ({days} days left)")
                             }
-                            x if x < &14 => format!("- ⚠️ Certificate valid for {days} days"),
+                            x if x < &14 => {
+                                error_state.warning_count += 1;
+                                format!("- ⚠️ Certificate valid for {days} days")
+                            }
                             _ => format!("- ✅ Certificate valid for {days} days"),
                         };
 
@@ -108,7 +121,7 @@ impl Checker {
                 let request_status_message: String = match request_status {
                     Ok(_) => "- ✅ All systems go".to_string(),
                     Err(err) => {
-                        problem_count += 1;
+                        error_state.error_count += 1;
                         let error = err
                             .to_string()
                             .split(":")
@@ -131,10 +144,13 @@ impl Checker {
             .join("\n");
 
         let cron_msg = match self.cron {
-            true => "Your daily report \n\n",
+            true => "Your daily report: ",
             false => "",
         };
 
-        format!("{cron_msg}Found {problem_count} errors\n\n{message}")
+        format!(
+            "{cron_msg}Found {} warning(s) / {} error(s)\n\n{message}",
+            error_state.warning_count, error_state.error_count
+        )
     }
 }
