@@ -32,6 +32,7 @@ async fn main() {
                         client,
                         domain_checker.parse_statusses_to_string(&domain_statusses),
                     )
+                    .parse_mode(teloxide::types::ParseMode::Html)
                     .await;
             }
         }

@@ -2,6 +2,7 @@ use std::{collections::HashMap, time::Duration};
 
 use reqwest::header::{ACCEPT, ACCEPT_LANGUAGE, USER_AGENT};
 use ssl_expiration2::SslExpiration;
+use prettytable::{Table, row, format};
 
 pub enum CertificateStatus {
     ValidFor(i32),
@@ -84,42 +85,46 @@ impl Checker {
             warning_count: 0,
         };
 
-        let message = statusses
-            .iter()
-            .map(|(domain, (domain_status, request_status))| {
-                let mut message = String::from(format!("{domain}:\n"));
+        // Create the table
+        let mut table = Table::new();
 
+        // Set table style
+        table.set_format(*format::consts::FORMAT_NO_COLSEP);
+
+        // Set table titles
+        table.set_titles(row![c->"Domain", c->"SSL Status", c->"HTTP Status"]);
+
+        let _ = statusses
+            .iter()
+            .for_each(|(domain, (domain_status, request_status))| {
                 let cert_status: String = match domain_status {
                     CertificateStatus::Expired => {
                         error_state.error_count += 1;
-                        "- ⌛️ Certificate expired".to_string()
+                        "⌛️ Certificate expired".to_string()
                     }
                     CertificateStatus::ValidationFailed(error) => {
                         error_state.error_count += 1;
-                        format!("- 🛑 Certificate error: {error}")
+                        format!("🛑 {error}")
                     }
                     CertificateStatus::ValidFor(days) => {
                         let message: String = match days {
                             x if x < &2 => {
                                 error_state.warning_count += 1;
-                                format!("- ⚠️ Certificate about to expire ({days} days left)")
+                                format!("⚠️ Certificate expires soon\n{days} days left")
                             }
                             x if x < &14 => {
                                 error_state.warning_count += 1;
-                                format!("- ⚠️ Certificate valid for {days} days")
+                                format!("⚠️ Certificate valid\n{days} days left")
                             }
-                            _ => format!("- ✅ Certificate valid for {days} days"),
+                            _ => format!("✅ Certificate valid\n{days} days left"),
                         };
 
                         message
                     }
                 };
 
-                message.push_str(&cert_status);
-                message.push_str("\n");
-
                 let request_status_message: String = match request_status {
-                    Ok(_) => "- ✅ All systems go".to_string(),
+                    Ok(status) => format!("✅ {} OK", status),
                     Err(err) => {
                         error_state.error_count += 1;
                         let error = err
@@ -131,17 +136,12 @@ impl Checker {
                             .trim_matches('.')
                             .to_string();
 
-                        format!("- 🛑 Error: {error}")
+                        format!("🛑 {error}")
                     }
                 };
 
-                message.push_str(&request_status_message);
-                message.push_str("\n");
-
-                message
-            })
-            .collect::<Vec<String>>()
-            .join("\n");
+                table.add_row(row![domain, cert_status, request_status_message]);
+            });
 
         let cron_msg = match self.cron {
             true => "Your daily report: ",
@@ -149,7 +149,7 @@ impl Checker {
         };
 
         format!(
-            "{cron_msg}Found {} warning(s) / {} error(s)\n\n{message}",
+            "{cron_msg}Found {} warning(s) / {} error(s)\n\nResult Details:\n<pre language=\"text\">\n{table}\n</pre>",
             error_state.warning_count, error_state.error_count
         )
     }
