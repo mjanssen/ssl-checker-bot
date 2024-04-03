@@ -18,6 +18,11 @@ pub struct Checker {
 
 type DomainStatusList<'a> = HashMap<&'a str, (CertificateStatus, DomainStatus)>;
 
+struct ErrorState {
+    error_count: u16,
+    warning_count: u16,
+}
+
 impl Checker {
     pub fn new<'b>(domains: Vec<String>, cron: bool) -> Self {
         Self { domains, cron }
@@ -74,8 +79,11 @@ impl Checker {
     }
 
     pub fn parse_statusses_to_string(&self, statusses: &DomainStatusList) -> String {
-        let mut warning_count = 0u16;
-        let mut error_count = 0u16;
+        let mut error_state = ErrorState {
+            error_count: 0,
+            warning_count: 0,
+        };
+
         let message = statusses
             .iter()
             .map(|(domain, (domain_status, request_status))| {
@@ -83,23 +91,23 @@ impl Checker {
 
                 let cert_status: String = match domain_status {
                     CertificateStatus::Expired => {
-                        error_count += 1;
+                        error_state.error_count += 1;
                         "- ⌛️ Certificate expired".to_string()
                     }
                     CertificateStatus::ValidationFailed(error) => {
-                        error_count += 1;
+                        error_state.error_count += 1;
                         format!("- 🛑 Certificate error: {error}")
                     }
                     CertificateStatus::ValidFor(days) => {
                         let message: String = match days {
                             x if x < &2 => {
-                                warning_count += 1;
+                                error_state.warning_count += 1;
                                 format!("- ⚠️ Certificate about to expire ({days} days left)")
                             }
                             x if x < &14 => {
-                                warning_count += 1;
+                                error_state.warning_count += 1;
                                 format!("- ⚠️ Certificate valid for {days} days")
-                            },
+                            }
                             _ => format!("- ✅ Certificate valid for {days} days"),
                         };
 
@@ -113,7 +121,7 @@ impl Checker {
                 let request_status_message: String = match request_status {
                     Ok(_) => "- ✅ All systems go".to_string(),
                     Err(err) => {
-                        error_count += 1;
+                        error_state.error_count += 1;
                         let error = err
                             .to_string()
                             .split(":")
@@ -140,6 +148,9 @@ impl Checker {
             false => "",
         };
 
-        format!("{cron_msg}Found {warning_count} warning(s) / {error_count} error(s)\n\n{message}")
+        format!(
+            "{cron_msg}Found {} warning(s) / {} error(s)\n\n{message}",
+            error_state.warning_count, error_state.error_count
+        )
     }
 }
